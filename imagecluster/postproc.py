@@ -1,5 +1,6 @@
 import os
 import shutil
+import functools
 
 from matplotlib import pyplot as plt
 import numpy as np
@@ -9,15 +10,15 @@ from . import calc as ic
 pj = os.path.join
 
 
-def plot_clusters(clusters, ias, max_csize=None, mem_limit=1024**3):
-    """Plot `clusters` of images in `ias`.
+def plot_clusters(clusters, images, max_csize=None, mem_limit=1024**3):
+    """Plot `clusters` of images in `images`.
 
     For interactive work, use :func:`visualize` instead.
 
     Parameters
     ----------
-    clusters : see :func:`calc.cluster`
-    ias : see :func:`calc.image_arrays`
+    clusters : see :func:`~imagecluster.calc.cluster`
+    images : see :func:`~imagecluster.io.read_images`
     max_csize : int
         plot clusters with at most this many images
     mem_limit : float or int, bytes
@@ -32,7 +33,7 @@ def plot_clusters(clusters, ias, max_csize=None, mem_limit=1024**3):
     ncols = stats[:,1].sum()
     # csize (number of images per cluster)
     nrows = stats[:,0].max()
-    shape = ias[list(ias.keys())[0]].shape[:2]
+    shape = images[list(images.keys())[0]].shape[:2]
     mem = nrows * shape[0] * ncols * shape[1] * 3
     if mem > mem_limit:
         raise Exception(f"size of plot array ({mem/1024**2} MiB) > mem_limit "
@@ -45,9 +46,9 @@ def plot_clusters(clusters, ias, max_csize=None, mem_limit=1024**3):
         for cluster in clusters[csize]:
             icol += 1
             for irow, filename in enumerate(cluster):
-                img_arr = ias[filename]
+                image = images[filename]
                 arr[irow*shape[0]:(irow+1)*shape[0],
-                    icol*shape[1]:(icol+1)*shape[1], :] = img_arr
+                    icol*shape[1]:(icol+1)*shape[1], :] = image
     print(f"plot array ({arr.dtype}) size: {arr.nbytes/1024**2} MiB")
     fig,ax = plt.subplots()
     ax.imshow(arr)
@@ -57,11 +58,23 @@ def plot_clusters(clusters, ias, max_csize=None, mem_limit=1024**3):
 
 
 def visualize(*args, **kwds):
+    """Interactive wrapper of :func:`plot_clusters`. Just calls ``plt.show`` at
+    the end. Doesn't return ``fig,ax``.
+    """
     plot_clusters(*args, **kwds)
     plt.show()
 
 
 def make_links(clusters, cluster_dr):
+    """In `cluster_dr`, create nested dirs with symlinks to image files
+    representing `clusters`.
+
+    Parameters
+    ----------
+    clusters : see :func:`~imagecluster.calc.cluster`
+    cluster_dr : str
+        path
+    """
     print("cluster dir: {}".format(cluster_dr))
     if os.path.exists(cluster_dr):
         shutil.rmtree(cluster_dr)
